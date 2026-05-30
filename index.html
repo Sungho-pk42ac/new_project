@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎰 랜덤 식단 룰렛</title>
+  <style>
+    /* 전체 레이아웃 - 카드형 중앙 정렬 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+      background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px 12px;
+    }
+    .card {
+      background: #fff;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 20px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+      padding: 28px 22px 32px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    /* 카테고리 필터 버튼 */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+    .filter-btn {
+      border: 2px solid #ff7676;
+      background: #fff;
+      color: #ff7676;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn.active {
+      background: #ff7676;
+      color: #fff;
+    }
+
+    /* 슬롯 디스플레이 */
+    .slot {
+      border: 3px dashed #ffb3b3;
+      border-radius: 16px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 16px;
+      text-align: center;
+      padding: 0 10px;
+      transition: transform 0.2s, color 0.2s;
+    }
+    .slot.win {
+      color: #e23b3b;
+      transform: scale(1.08);
+      border-style: solid;
+      border-color: #e23b3b;
+    }
+    .slot.empty {
+      font-size: 1.05rem;
+      color: #999;
+      font-weight: 500;
+    }
+
+    .spin-btn {
+      width: 100%;
+      border: none;
+      background: #ff5252;
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding: 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .spin-btn:hover:not(:disabled) { background: #e53935; }
+    .spin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    hr { border: none; border-top: 1px solid #eee; margin: 26px 0 18px; }
+
+    /* 메뉴 관리 영역 */
+    .manage-title { font-size: 1rem; color: #555; margin-bottom: 12px; }
+    .add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .add-row input {
+      flex: 1 1 120px;
+      padding: 9px 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 0.92rem;
+    }
+    .add-row select {
+      padding: 9px 8px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 0.92rem;
+    }
+    .add-row button {
+      border: none;
+      background: #4caf50;
+      color: #fff;
+      padding: 0 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+    .add-row button:hover { background: #43a047; }
+
+    .menu-list { list-style: none; max-height: 240px; overflow-y: auto; }
+    .menu-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      background: #faf7f7;
+    }
+    .menu-list .tag {
+      font-size: 0.72rem;
+      background: #ffe0e0;
+      color: #d35;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-right: 8px;
+    }
+    .menu-list .name { flex: 1; font-size: 0.95rem; color: #333; }
+    .del-btn {
+      border: none;
+      background: transparent;
+      color: #bbb;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .del-btn:hover { color: #e53935; }
+    .empty-msg { text-align: center; color: #aaa; padding: 14px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎰 랜덤 식단 룰렛</h1>
+
+    <!-- 카테고리 필터 -->
+    <div class="filters" id="filters"></div>
+
+    <!-- 슬롯 디스플레이 -->
+    <div class="slot" id="slot">돌리기를 눌러보세요!</div>
+    <button class="spin-btn" id="spinBtn">🎲 돌리기</button>
+
+    <hr />
+
+    <!-- 메뉴 관리 -->
+    <div class="manage-title">📝 메뉴 관리</div>
+    <div class="add-row">
+      <input type="text" id="nameInput" placeholder="메뉴 이름" maxlength="20" />
+      <select id="categorySelect">
+        <option value="한식">한식</option>
+        <option value="중식">중식</option>
+        <option value="일식">일식</option>
+        <option value="양식">양식</option>
+      </select>
+      <button id="addBtn">추가</button>
+    </div>
+    <ul class="menu-list" id="menuList"></ul>
+  </div>
+
+  <script>
+    "use strict";
+
+    // 카테고리 목록 (필터 + 추가 셀렉트에서 공통 사용)
+    const CATEGORIES = ["한식", "중식", "일식", "양식"];
+    const STORAGE_KEY = "menuRouletteData";
+
+    // 첫 실행 시 채워질 기본 메뉴
+    const defaultMenus = [
+      { name: "김치찌개", category: "한식" },
+      { name: "된장찌개", category: "한식" },
+      { name: "비빔밥", category: "한식" },
+      { name: "불고기", category: "한식" },
+      { name: "제육볶음", category: "한식" },
+      { name: "짜장면", category: "중식" },
+      { name: "짬뽕", category: "중식" },
+      { name: "탕수육", category: "중식" },
+      { name: "마라탕", category: "중식" },
+      { name: "양꼬치", category: "중식" },
+      { name: "초밥", category: "일식" },
+      { name: "라멘", category: "일식" },
+      { name: "돈카츠", category: "일식" },
+      { name: "우동", category: "일식" },
+      { name: "규동", category: "일식" },
+      { name: "파스타", category: "양식" },
+      { name: "스테이크", category: "양식" },
+      { name: "피자", category: "양식" },
+      { name: "햄버거", category: "양식" },
+      { name: "리조또", category: "양식" }
+    ];
+
+    // 앱 상태
+    let menus = [];           // 전체 메뉴 배열
+    let currentCategory = "전체"; // 선택된 필터
+    let isSpinning = false;   // 룰렛 회전 중 여부
+
+    // DOM 참조
+    const slotEl = document.getElementById("slot");
+    const spinBtn = document.getElementById("spinBtn");
+    const filtersEl = document.getElementById("filters");
+    const menuListEl = document.getElementById("menuList");
+    const nameInput = document.getElementById("nameInput");
+    const categorySelect = document.getElementById("categorySelect");
+    const addBtn = document.getElementById("addBtn");
+
+    /**
+     * localStorage에서 메뉴를 불러온다. 저장값이 없으면 기본 메뉴로 초기화한다.
+     */
+    function loadMenus() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          menus = JSON.parse(raw);
+        } catch (e) {
+          menus = [...defaultMenus];
+        }
+      } else {
+        menus = [...defaultMenus];
+        saveMenus();
+      }
+    }
+
+    /**
+     * 현재 메뉴 배열을 localStorage에 저장한다.
+     */
+    function saveMenus() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(menus));
+    }
+
+    /**
+     * 선택된 카테고리 기준으로 추첨 후보 메뉴를 반환한다.
+     * @returns {Array} 후보 메뉴 배열
+     */
+    function getCandidates() {
+      if (currentCategory === "전체") return menus;
+      return menus.filter((m) => m.category === currentCategory);
+    }
+
+    /**
+     * 카테고리 필터 버튼들을 렌더링한다.
+     */
+    function renderFilters() {
+      const all = ["전체", ...CATEGORIES];
+      filtersEl.innerHTML = "";
+      all.forEach((cat) => {
+        const btn = document.createElement("button");
+        btn.className = "filter-btn" + (cat === currentCategory ? " active" : "");
+        btn.textContent = cat;
+        btn.addEventListener("click", () => selectCategory(cat));
+        filtersEl.appendChild(btn);
+      });
+    }
+
+    /**
+     * 필터 카테고리를 변경하고 화면을 갱신한다.
+     * @param {string} category 선택한 카테고리
+     */
+    function selectCategory(category) {
+      if (isSpinning) return; // 회전 중에는 변경 금지
+      currentCategory = category;
+      renderFilters();
+      updateSpinAvailability();
+    }
+
+    /**
+     * 후보 유무에 따라 돌리기 버튼/안내 문구 상태를 갱신한다.
+     */
+    function updateSpinAvailability() {
+      const hasCandidate = getCandidates().length > 0;
+      spinBtn.disabled = !hasCandidate;
+      if (!hasCandidate) {
+        slotEl.classList.remove("win");
+        slotEl.classList.add("empty");
+        slotEl.textContent = "메뉴를 추가해주세요 🙏";
+      } else if (slotEl.classList.contains("empty")) {
+        slotEl.classList.remove("empty");
+        slotEl.textContent = "돌리기를 눌러보세요!";
+      }
+    }
+
+    /**
+     * 슬롯머신 연출과 함께 후보 중 하나를 추첨한다.
+     * 빠르게 이름을 교체하다 점점 간격을 늘려 감속한 뒤 멈춘다.
+     */
+    function spinRoulette() {
+      const candidates = getCandidates();
+      if (isSpinning || candidates.length === 0) return;
+
+      isSpinning = true;
+      spinBtn.disabled = true;
+      slotEl.classList.remove("win", "empty");
+
+      let delay = 60;          // 현재 교체 간격(ms)
+      const maxDelay = 320;    // 이 간격을 넘으면 정지
+      let timer;
+
+      // 매 틱마다 랜덤 메뉴를 표시하고, 간격을 점점 늘려 감속한다.
+      function tick() {
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        slotEl.textContent = pick.name;
+
+        delay *= 1.12; // 점진적 감속
+        if (delay >= maxDelay) {
+          // 최종 당첨 메뉴 확정
+          finishSpin(candidates);
+          return;
+        }
+        timer = setTimeout(tick, delay);
+      }
+
+      tick();
+    }
+
+    /**
+     * 룰렛을 멈추고 최종 당첨 메뉴를 강조 표시한다.
+     * @param {Array} candidates 후보 메뉴 배열
+     */
+    function finishSpin(candidates) {
+      const winner = candidates[Math.floor(Math.random() * candidates.length)];
+      slotEl.textContent = "🍽️ " + winner.name;
+      slotEl.classList.add("win");
+      isSpinning = false;
+      spinBtn.disabled = false;
+    }
+
+    /**
+     * 입력값을 검증하여 새 메뉴를 추가한다.
+     */
+    function addMenu() {
+      const name = nameInput.value.trim();
+      const category = categorySelect.value;
+
+      if (!name) {
+        nameInput.focus();
+        return;
+      }
+      // 같은 이름 + 카테고리 중복 방지
+      const isDup = menus.some((m) => m.name === name && m.category === category);
+      if (isDup) {
+        alert("이미 같은 카테고리에 등록된 메뉴예요.");
+        return;
+      }
+
+      menus.push({ name, category });
+      saveMenus();
+      nameInput.value = "";
+      nameInput.focus();
+      renderMenuList();
+      updateSpinAvailability();
+    }
+
+    /**
+     * 지정한 인덱스의 메뉴를 삭제한다.
+     * @param {number} index 삭제할 메뉴의 인덱스
+     */
+    function deleteMenu(index) {
+      menus.splice(index, 1);
+      saveMenus();
+      renderMenuList();
+      updateSpinAvailability();
+    }
+
+    /**
+     * 현재 메뉴 목록을 화면에 렌더링한다.
+     */
+    function renderMenuList() {
+      menuListEl.innerHTML = "";
+      if (menus.length === 0) {
+        const li = document.createElement("li");
+        li.className = "empty-msg";
+        li.textContent = "등록된 메뉴가 없습니다.";
+        menuListEl.appendChild(li);
+        return;
+      }
+
+      menus.forEach((menu, index) => {
+        const li = document.createElement("li");
+
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = menu.category;
+
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = menu.name;
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "del-btn";
+        delBtn.textContent = "✕";
+        delBtn.title = "삭제";
+        delBtn.addEventListener("click", () => deleteMenu(index));
+
+        li.appendChild(tag);
+        li.appendChild(name);
+        li.appendChild(delBtn);
+        menuListEl.appendChild(li);
+      });
+    }
+
+    /**
+     * 앱을 초기화한다.
+     */
+    function init() {
+      loadMenus();
+      renderFilters();
+      renderMenuList();
+      updateSpinAvailability();
+
+      spinBtn.addEventListener("click", spinRoulette);
+      addBtn.addEventListener("click", addMenu);
+      // 입력창에서 Enter 시 추가
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addMenu();
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
